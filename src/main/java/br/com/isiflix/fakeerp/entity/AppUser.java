@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 
 /**
  * Usuário de login. Mapeado para a tabela tbl_users.
+ * Os escopos (coluna scopes) vão para a claim "scope" do JWT.
  * A senha é armazenada no formato do DelegatingPasswordEncoder, ex.: {bcrypt}$2a$...
  */
 @Entity
@@ -28,6 +29,10 @@ public class AppUser {
     @Column(nullable = false)
     private String role = "ROLE_USER";
 
+    /** Escopos JWT separados por espaço, ex.: "report:read policy:read". */
+    @Column(nullable = false)
+    private String scopes = "";
+
     protected AppUser() {
     }
 
@@ -45,5 +50,9 @@ public class AppUser {
 
     public String getRole() {
         return role;
+    }
+
+    public String getScopes() {
+        return scopes;
     }
 }

@@ -21,7 +21,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("FakeERP API")
-                        .description("API de login (JWT) e relatório de pedidos")
+                        .description("API de login (JWT com escopos), relatório de pedidos e squad de crédito PJ")
                         .version("v1"))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME))
                 .components(new Components().addSecuritySchemes(SECURITY_SCHEME,

@@ -1,5 +1,6 @@
 package br.com.isiflix.fakeerp.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,23 +8,30 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Lê o header "Authorization: Bearer <token>", valida o JWT e autentica a requisição.
+ * Cada escopo da claim "scope" vira uma authority SCOPE_<escopo>.
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String HEADER = "Authorization";
     private static final String PREFIX = "Bearer ";
+    public static final String SCOPE_PREFIX = "SCOPE_";
 
     private final JwtService jwtService;
     private final AppUserDetailsService userDetailsService;
@@ -45,14 +53,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = header.substring(PREFIX.length());
             try {
-                String username = jwtService.extractUsername(token);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                Claims claims = jwtService.parse(token);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
+
+                // Authorities = role do usuário + escopos que vieram no token (SCOPE_report:read, ...)
+                List<GrantedAuthority> authorities = new ArrayList<>(userDetails.getAuthorities());
+                JwtService.splitScopes(claims.get(JwtService.SCOPE_CLAIM, String.class))
+                        .forEach(scope -> authorities.add(new SimpleGrantedAuthority(SCOPE_PREFIX + scope)));
 
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
+                        userDetails, null, authorities);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (JwtException | IllegalArgumentException ex) {
+            } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ex) {
                 // Token inválido/expirado -> segue sem autenticação; será barrado adiante.
                 SecurityContextHolder.clearContext();
             }

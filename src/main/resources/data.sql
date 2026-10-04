@@ -5,12 +5,18 @@
 
 -- --------------------------------------------------------------------------
 -- Usuários de login (senha no formato do DelegatingPasswordEncoder: {bcrypt})
---   admin / admin   -> ROLE_ADMIN
---   user  / user    -> ROLE_USER
+--   admin             / admin       -> ROLE_ADMIN, todos os escopos (único com credit:approve)
+--   user              / user        -> ROLE_USER,  report:read
+--   agent-analista    / analista    -> ROLE_AGENT, report:read
+--   agent-compliance  / compliance  -> ROLE_AGENT, policy:read
+--   agent-coordenador / coordenador -> ROLE_AGENT, credit:write
 -- --------------------------------------------------------------------------
-MERGE INTO tbl_users (id, username, password, role) KEY (username) VALUES
-    (1, 'admin', '{bcrypt}$2a$10$pxgPjE.T2ot/h6JINKxrSeNbyYfKijPuCnd9f3AFZD/gH9glcx8jC', 'ROLE_ADMIN'),
-    (2, 'user',  '{bcrypt}$2a$10$pmegM4Aech0QsMAdaTBlWeAXvTKo6msBcGimcQE81fDDXmzYrGme2', 'ROLE_USER');
+MERGE INTO tbl_users (id, username, password, role, scopes) KEY (username) VALUES
+    (1, 'admin', '{bcrypt}$2a$10$pxgPjE.T2ot/h6JINKxrSeNbyYfKijPuCnd9f3AFZD/gH9glcx8jC', 'ROLE_ADMIN', 'report:read policy:read credit:write credit:approve'),
+    (2, 'user',  '{bcrypt}$2a$10$pmegM4Aech0QsMAdaTBlWeAXvTKo6msBcGimcQE81fDDXmzYrGme2', 'ROLE_USER',  'report:read'),
+    (3, 'agent-analista',    '{bcrypt}$2a$10$G0VQLEE6bFbuqIJDXCVQse/gp4h405gSoSo3j2vDMxkCNpmmXOT9C', 'ROLE_AGENT', 'report:read'),
+    (4, 'agent-compliance',  '{bcrypt}$2a$10$CrqcWPmuh/ZE5HA5ybE01eZPExR/7hqFARn3ANtWFzjFvMYo5vdwa', 'ROLE_AGENT', 'policy:read'),
+    (5, 'agent-coordenador', '{bcrypt}$2a$10$TruVXJvLhkf0Yj5Mvs4R3O6mIk.JFYhhfgOy.ysuoDVW9ANFxa9Q.', 'ROLE_AGENT', 'credit:write');
 
 -- --------------------------------------------------------------------------
 -- Pedidos (tbl_orders) - dados de exemplo em meses distintos
@@ -32,3 +38,22 @@ MERGE INTO tbl_orders (order_id, order_date_time, value, discount, total, status
     -- Julho/2026
     (1011, TIMESTAMP '2026-07-04 09:00:00',  320.00,  20.00,  300.00, 'PAID'),
     (1012, TIMESTAMP '2026-07-16 15:30:00', 4100.00, 100.00, 4000.00, 'PAID');
+
+-- --------------------------------------------------------------------------
+-- Empresas (tbl_company) - 3 cenários propositais do squad de crédito:
+--   11111111000191 -> saudável
+--   22222222000172 -> no limite da política
+--   33333333000153 -> divergente (declara alto; deve ser criticado)
+-- --------------------------------------------------------------------------
+MERGE INTO tbl_company (cnpj, corporate_name, trade_name, segment, founded_at, declared_monthly_revenue) KEY (cnpj) VALUES
+    ('11111111000191', 'Comercio Fake Ltda', 'Fake Comercio',  'varejo',    DATE '2015-03-10', 180000.00),
+    ('22222222000172', 'Servicos Fake ME',   'Fake Servicos',  'servicos',  DATE '2021-06-01',  60000.00),
+    ('33333333000153', 'Industria Fake SA',  'Fake Industria', 'industria', DATE '2018-11-20', 120000.00);
+
+-- --------------------------------------------------------------------------
+-- Política de crédito (tbl_credit_policy) - versão vigente, segmento geral
+-- --------------------------------------------------------------------------
+MERGE INTO tbl_credit_policy (policy_version, segment, min_months_active, min_monthly_revenue,
+                              max_discount_rate_allowed, min_orders_count_last_3_months,
+                              max_requested_amount, updated_at) KEY (policy_version, segment) VALUES
+    ('2026.1', 'geral', 12, 50000.00, 0.1500, 10, 300000.00, TIMESTAMP WITH TIME ZONE '2026-01-05 00:00:00+00:00');
