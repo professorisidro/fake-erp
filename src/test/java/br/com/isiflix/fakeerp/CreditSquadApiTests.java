@@ -13,6 +13,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -92,6 +94,48 @@ class CreditSquadApiTests {
                 .andExpect(jsonPath("$.count").value(4));
         mvc.perform(get("/report/2026/1").header("Authorization", bearer("admin", "admin")))
                 .andExpect(status().isOk());
+    }
+
+    // ------------------------------------------------------- report por cnpj
+
+    @Test
+    void reportWithoutFilterIncludesAllCompanies() throws Exception {
+        // jul/2026: 2 pedidos originais + 6 (saudável) + 4 (limite) + 3 (divergente)
+        mvc.perform(get("/report/2026/7").header("Authorization", bearer("agent-analista", "analista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cnpj").doesNotExist())
+                .andExpect(jsonPath("$.count").value(15))
+                .andExpect(jsonPath("$.orders[0].cnpj").isNotEmpty());
+    }
+
+    @Test
+    void reportFilteredByCnpj() throws Exception {
+        String token = bearer("agent-analista", "analista");
+        mvc.perform(get("/report/2026/7").param("cnpj", "22222222000172").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cnpj").value("22222222000172"))
+                .andExpect(jsonPath("$.count").value(4))
+                .andExpect(jsonPath("$.totalAmount").value(48700.00))
+                .andExpect(jsonPath("$.orders[*].cnpj", everyItem(is("22222222000172"))));
+
+        mvc.perform(get("/report/2026/7").param("cnpj", HEALTHY_CNPJ).header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(8))
+                .andExpect(jsonPath("$.totalAmount").value(180300.00));
+
+        mvc.perform(get("/report/2026/8").param("cnpj", "33333333000153").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(3))
+                .andExpect(jsonPath("$.totalAmount").value(39800.00));
+    }
+
+    @Test
+    void reportCnpjValidation() throws Exception {
+        String token = bearer("agent-analista", "analista");
+        mvc.perform(get("/report/2026/7").param("cnpj", "123").header("Authorization", token))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/report/2026/7").param("cnpj", "99999999000199").header("Authorization", token))
+                .andExpect(status().isNotFound());
     }
 
     // ---------------------------------------------------------- credit-policy

@@ -95,7 +95,7 @@ Autentica o usuário e retorna um token JWT.
 
 ### `GET /report/{year}/{month}`
 
-🔒 Requer o escopo `report:read`. Retorna os pedidos de `tbl_orders` filtrados por ano e mês, com os totais consolidados.
+🔒 Requer o escopo `report:read`. Retorna os pedidos de `tbl_orders` filtrados por ano e mês — e, opcionalmente, pelo CNPJ da empresa que faturou — com os totais consolidados.
 
 **Path params**
 
@@ -104,12 +104,19 @@ Autentica o usuário e retorna um token JWT.
 | `year`    | int  | Ano do pedido (ex.: `2026`) |
 | `month`   | int  | Mês do pedido, de `1` a `12`|
 
+**Query params**
+
+| Parâmetro | Tipo   | Descrição                                                                 |
+|-----------|--------|---------------------------------------------------------------------------|
+| `cnpj`    | string | Opcional. CNPJ (14 dígitos, sem máscara) da empresa que faturou. Sem ele, o relatório inclui todas as empresas |
+
 **Response `200 OK`**
 
 ```json
 {
   "year": 2026,
   "month": 1,
+  "cnpj": "11111111000191",
   "count": 4,
   "totalValue": 3050.50,
   "totalDiscount": 195.50,
@@ -117,6 +124,7 @@ Autentica o usuário e retorna um token JWT.
   "orders": [
     {
       "orderId": 1001,
+      "cnpj": "11111111000191",
       "orderDateTime": "2026-01-05T09:30:00",
       "value": 1000.00,
       "discount": 50.00,
@@ -127,7 +135,11 @@ Autentica o usuário e retorna um token JWT.
 }
 ```
 
-**Response `400 Bad Request`** — mês fora do intervalo `1..12`.
+`cnpj` vem `null` quando o relatório não é filtrado.
+
+**Response `400 Bad Request`** — mês fora do intervalo `1..12` ou CNPJ fora do formato.
+
+**Response `404 Not Found`** — CNPJ não cadastrado.
 
 **Response `401 Unauthorized`** — token ausente ou inválido. **`403 Forbidden`** — token sem `report:read`.
 
@@ -144,6 +156,16 @@ Três agentes, cada um com um escopo: o **Analista** levanta dados (`/company` +
 | `11111111000191` | Comercio Fake Ltda | varejo    | R$ 180.000/mês        | Saudável        |
 | `22222222000172` | Servicos Fake ME   | servicos  | R$ 60.000/mês         | No limite       |
 | `33333333000153` | Industria Fake SA  | industria | R$ 120.000/mês        | Divergente      |
+
+Pedidos de mai–set/2026 de cada empresa (`GET /report/{year}/{month}?cnpj=...`), desenhados contra a política `2026.1` (mín. R$ 50.000/mês, mín. 10 pedidos em 3 meses, desconto máx. 15%):
+
+| CNPJ             | Faturado/mês (total)      | Pedidos/mês | Desconto  | O que o squad deve perceber                          |
+|------------------|---------------------------|-------------|-----------|------------------------------------------------------|
+| `11111111000191` | R$ 176–185 mil            | 6           | 2–7%      | Bate com o declarado; dentro da política             |
+| `22222222000172` | R$ 52–56 mil (jul: 48,7 mil) | 4        | 11–14,5%  | No limite: o resultado depende do mês e do critério  |
+| `33333333000153` | R$ 34–40 mil              | 3 (1 cancelado) | 16–22% | Declara 3x o que fatura; desconto e volume fora da política |
+
+Os pedidos originais (1001–1012, jan–jul/2026) pertencem à `11111111000191`.
 
 ---
 
@@ -297,7 +319,7 @@ HUMANO=$(login admin admin)
 
 # Analista: cadastro + relatório
 curl -s http://localhost:8080/company/33333333000153 -H "Authorization: Bearer $ANALISTA"
-curl -s http://localhost:8080/report/2026/7 -H "Authorization: Bearer $ANALISTA"
+curl -s "http://localhost:8080/report/2026/7?cnpj=33333333000153" -H "Authorization: Bearer $ANALISTA"
 
 # Compliance: política vigente
 curl -s "http://localhost:8080/credit-policy?segment=industria" -H "Authorization: Bearer $COMPLIANCE"

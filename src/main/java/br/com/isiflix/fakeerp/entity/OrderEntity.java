@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 
 /**
  * Pedido. Mapeado para a tabela tbl_orders com as colunas:
- * order_id, order_date_time, value, discount, total, status.
+ * order_id, cnpj, order_date_time, value, discount, total, status.
+ * O cnpj identifica a empresa (tbl_company) que faturou o pedido.
  */
 @Entity
 @Table(name = "tbl_orders")
@@ -19,6 +20,9 @@ public class OrderEntity {
     @Id
     @Column(name = "order_id")
     private Long orderId;
+
+    @Column(name = "cnpj", length = 14)
+    private String cnpj;
 
     @Column(name = "order_date_time", nullable = false)
     private LocalDateTime orderDateTime;
@@ -40,6 +44,10 @@ public class OrderEntity {
 
     public Long getOrderId() {
         return orderId;
+    }
+
+    public String getCnpj() {
+        return cnpj;
     }
 
     public LocalDateTime getOrderDateTime() {

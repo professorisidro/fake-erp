@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
  */
 public record OrderDTO(
         Long orderId,
+        String cnpj,
         LocalDateTime orderDateTime,
         BigDecimal value,
         BigDecimal discount,
@@ -19,6 +20,7 @@ public record OrderDTO(
     public static OrderDTO fromEntity(OrderEntity o) {
         return new OrderDTO(
                 o.getOrderId(),
+                o.getCnpj(),
                 o.getOrderDateTime(),
                 o.getValue(),
                 o.getDiscount(),

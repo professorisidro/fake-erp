@@ -19,4 +19,17 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             order by o.orderDateTime
             """)
     List<OrderEntity> findByYearAndMonth(@Param("year") int year, @Param("month") int month);
+
+    /**
+     * Mesmo filtro por ano/mês, restrito aos pedidos faturados por um CNPJ.
+     */
+    @Query("""
+            select o from OrderEntity o
+            where o.cnpj = :cnpj
+              and extract(year from o.orderDateTime) = :year
+              and extract(month from o.orderDateTime) = :month
+            order by o.orderDateTime
+            """)
+    List<OrderEntity> findByCnpjAndYearAndMonth(@Param("cnpj") String cnpj,
+                                                @Param("year") int year, @Param("month") int month);
 }

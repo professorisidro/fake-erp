@@ -78,3 +78,11 @@ CREATE TABLE IF NOT EXISTS tbl_credit_decision (
     CONSTRAINT fk_credit_decision_supersedes FOREIGN KEY (supersedes_id) REFERENCES tbl_credit_decision (id),
     CONSTRAINT uq_credit_decision_period     UNIQUE (cnpj, reference_year, reference_month, revision)
 );
+
+-- ==========================================================================
+-- CNPJ da empresa que faturou o pedido (relatório filtrável por empresa)
+-- ==========================================================================
+ALTER TABLE tbl_orders ADD COLUMN IF NOT EXISTS cnpj CHAR(14);
+ALTER TABLE tbl_orders ADD CONSTRAINT IF NOT EXISTS fk_orders_company
+    FOREIGN KEY (cnpj) REFERENCES tbl_company (cnpj);
+CREATE INDEX IF NOT EXISTS idx_orders_cnpj_date ON tbl_orders (cnpj, order_date_time);
